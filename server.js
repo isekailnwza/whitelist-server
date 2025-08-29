@@ -6,6 +6,7 @@ app.use(express.json());
 
 const ADMIN_KEY = process.env.ADMIN_KEY || "supersecretkey";
 
+// เพิ่ม/แก้ placeId
 app.post("/set", (req, res) => {
   const auth = req.headers["authorization"];
   if (auth !== `Bearer ${ADMIN_KEY}`) return res.status(403).json({ error: "Forbidden" });
@@ -22,6 +23,7 @@ app.post("/set", (req, res) => {
   );
 });
 
+// เช็ค placeId
 app.get("/check/:placeId", (req, res) => {
   db.get(
     `SELECT whitelisted FROM whitelist WHERE placeId = ?`,
@@ -34,6 +36,7 @@ app.get("/check/:placeId", (req, res) => {
   );
 });
 
+// ดึง whitelist ทั้งหมด
 app.get("/all", (req, res) => {
   db.all("SELECT placeId, whitelisted FROM whitelist", [], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
