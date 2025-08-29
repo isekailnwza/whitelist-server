@@ -24,14 +24,15 @@ app.post("/set", (req, res) => {
 });
 
 // เช็ค placeId
-app.get("/check/:placeId", (req, res) => {
+app.get("/config/:placeId", (req, res) => {
+  const { placeId } = req.params;
   db.get(
     `SELECT whitelisted FROM whitelist WHERE placeId = ?`,
-    [req.params.placeId],
+    [placeId],
     (err, row) => {
       if (err) return res.status(500).json({ error: err.message });
-      if (!row) return res.json({ placeId: req.params.placeId, whitelisted: false });
-      res.json({ placeId: req.params.placeId, whitelisted: row.whitelisted === 1 });
+      if (!row) return res.json({ placeId, whitelisted: false });
+      res.json({ placeId, whitelisted: row.whitelisted === 1 });
     }
   );
 });
@@ -47,4 +48,4 @@ app.get("/all", (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`))
