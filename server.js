@@ -1,29 +1,47 @@
 const express = require("express");
-const app = express();
+const db = require("./db");
 
+const app = express();
 app.use(express.json());
 
-let config = {
-  "123456789": { Whitelisted: false },
-  "987654321": { Whitelisted: true }
-};
-
-app.get("/config", (req, res) => {
-  res.json(config);
-});
-
-app.get("/config/:placeId", (req, res) => {
-  const placeId = req.params.placeId;
-  if (config[placeId]) return res.json(config[placeId]);
-  res.status(404).json({ error: "PlaceId not found" });
-});
+const ADMIN_KEY = process.env.ADMIN_KEY || "supersecretkey";
 
 app.post("/set", (req, res) => {
+  const auth = req.headers["authorization"];
+  if (auth !== `Bearer ${ADMIN_KEY}`) return res.status(403).json({ error: "Forbidden" });
+
   const { placeId, whitelisted } = req.body;
-  if (!placeId) return res.status(400).json({ error: "Missing placeId" });
-  config[placeId] = { Whitelisted: Boolean(whitelisted) };
-  res.json({ success: true, newConfig: config[placeId] });
+  db.run(
+    `INSERT INTO whitelist(placeId, whitelisted) VALUES(?, ?)
+     ON CONFLICT(placeId) DO UPDATE SET whitelisted = excluded.whitelisted`,
+    [placeId, whitelisted ? 1 : 0],
+    (err) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ placeId, whitelisted });
+    }
+  );
+});
+
+app.get("/check/:placeId", (req, res) => {
+  db.get(
+    `SELECT whitelisted FROM whitelist WHERE placeId = ?`,
+    [req.params.placeId],
+    (err, row) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (!row) return res.json({ placeId: req.params.placeId, whitelisted: false });
+      res.json({ placeId: req.params.placeId, whitelisted: row.whitelisted === 1 });
+    }
+  );
+});
+
+app.get("/all", (req, res) => {
+  db.all("SELECT placeId, whitelisted FROM whitelist", [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    const result = {};
+    rows.forEach(r => result[r.placeId] = r.whitelisted === 1);
+    res.json(result);
+  });
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Running on ${PORT}`));
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
